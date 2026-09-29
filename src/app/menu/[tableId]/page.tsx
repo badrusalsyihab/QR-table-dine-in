@@ -27,27 +27,23 @@ export default function EMenuPage() {
 
   useEffect(() => {
     async function load() {
-      const [catRes, menuRes, sessionRes] = await Promise.all([
-        supabase
-          .from("menu_categories")
-          .select("*")
-          .eq("branch_id", BRANCH_ID)
-          .order("sort_order"),
-        supabase
-          .from("menu_items")
-          .select("*, category:menu_categories(*), variants:menu_item_variants(*)")
-          .eq("branch_id", BRANCH_ID)
-          .order("sort_order"),
-        supabase
-          .from("table_sessions")
-          .select("*, table:tables(*, area:table_areas(*))")
-          .eq("status", "active")
-          .ilike("table_sessions.table.label", `M-${tableId.padStart(2, "0")}`)
-          .maybeSingle(),
+      const tableNumber = parseInt(tableId, 10);
+      const [catRes, menuRes, tableRes] = await Promise.all([
+        supabase.from("menu_categories").select("*").eq("branch_id", BRANCH_ID).order("sort_order"),
+        supabase.from("menu_items").select("*, category:menu_categories(*), variants:menu_item_variants(*)").eq("branch_id", BRANCH_ID).order("sort_order"),
+        supabase.from("tables").select("id").eq("branch_id", BRANCH_ID).eq("number", tableNumber).single(),
       ]);
       if (catRes.data) setCategories(catRes.data);
       if (menuRes.data) setMenuItems(menuRes.data as MenuItem[]);
-      if (sessionRes.data) setSession(sessionRes.data as TableSession);
+      if (tableRes.data) {
+        const { data: sess } = await supabase
+          .from("table_sessions")
+          .select("*, table:tables(*, area:table_areas(*))")
+          .eq("table_id", tableRes.data.id)
+          .eq("status", "active")
+          .maybeSingle();
+        if (sess) setSession(sess as TableSession);
+      }
       setLoading(false);
     }
     load();
